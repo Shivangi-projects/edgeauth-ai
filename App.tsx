@@ -5,6 +5,7 @@ import {
   Text,
   View,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 
 import {
@@ -19,7 +20,17 @@ export default function App() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [records, setRecords] = useState<any[]>([]);
   const [showLogs, setShowLogs] = useState(false);
-
+  const [showRegister, setShowRegister] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [registeredUser, setRegisteredUser] = useState('');
+  const [syncCount, setSyncCount] = useState(0);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [pendingSync, setPendingSync] = useState(0);
+    const registeredCount =
+    registeredUser &&
+    registeredUser !== 'Not Registered'
+      ? 1
+      : 0;
   const [verificationText, setVerificationText] = useState(
     'Blink Detected'
   );
@@ -60,11 +71,28 @@ export default function App() {
 
     if (stored) {
       setRecords(JSON.parse(stored));
+      setPendingSync(JSON.parse(stored).length);
+      setSyncCount(JSON.parse(stored).length);
     }
   };
 
   loadRecords();
 }, [showSuccess]);
+
+const loadUser = async () => {
+  const user =
+    await AsyncStorage.getItem(
+      'registeredUser'
+    );
+
+  if (user) {
+    setRegisteredUser(user);
+  }
+};
+
+useEffect(() => {
+  loadUser();
+}, []);
 
   if (!permission) {
     return <View />;
@@ -91,7 +119,7 @@ export default function App() {
   const saveAttendance = async () => {
   try {
     const record = {
-      user: 'Shivangi',
+      user: registeredUser || 'Unknown User',
       status: 'Authenticated',
       time: new Date().toLocaleTimeString(),
     };
@@ -115,6 +143,96 @@ export default function App() {
     console.log(error);
   }
 };
+const syncRecords = async () => {
+  try {
+    await AsyncStorage.removeItem('attendanceRecords');
+
+    setRecords([]);
+    setPendingSync(0);
+
+    alert(
+      'Records Synced Successfully\nLocal Cache Purged'
+    );
+  } catch (error) {
+    console.log(error);
+  }
+};
+if (showRegister) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.successTitle}>
+        Register User
+      </Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Enter Name"
+        placeholderTextColor="#9CA3AF"
+        value={userName}
+        onChangeText={setUserName}
+      />
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={async () => {
+          await AsyncStorage.setItem(
+            'registeredUser',
+            userName
+          );
+
+          setRegisteredUser(userName);
+          setShowRegister(false);
+        }}
+      >
+        <Text style={styles.buttonText}>
+          Save User
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+if (showDashboard) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.successTitle}>
+        System Dashboard
+      </Text>
+
+      <Text style={styles.logText}>
+        Registered Users: {registeredCount}
+      </Text>
+
+      <Text style={styles.logText}>
+        Authentication Logs: {records.length}
+      </Text>
+
+      <Text style={styles.logText}>
+        Pending Sync: {pendingSync}
+      </Text>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={syncRecords}
+      >
+        <Text style={styles.buttonText}>
+          Sync Now
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.secondaryButton,
+          { marginTop: 20 }
+        ]}
+        onPress={() => setShowDashboard(false)}
+      >
+        <Text style={styles.buttonText}>
+          Back
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 if (showLogs) {
   return (
     <View style={styles.container}>
@@ -127,7 +245,7 @@ if (showLogs) {
        key={index}
        style={styles.logText}
       >
-      {record.time || 'Unknown Time'} ✅ {record.status}
+      {record.time || 'Unknown Time'} ✅ {record.user}
     </Text>
   ))}
 
@@ -219,10 +337,27 @@ if (showSuccess) {
       Offline Facial Recognition &
       Liveness Detection
     </Text>
+    <View style={styles.dashboardBox}>
+  <Text style={styles.dashboardText}>
+    Registered Users: {registeredCount}
+  </Text>
+
+  <Text style={styles.dashboardText}>
+    Authentication Logs: {records.length}
+  </Text>
+
+  <Text style={styles.dashboardText}>
+    Pending Sync: {syncCount}
+  </Text>
+</View>
 
     <View style={styles.statusBox}>
       <Text style={styles.statusText}>
         Offline Mode Active
+        {'\n'}
+        <Text style={styles.userText}>
+          User: {registeredUser || 'Not Registered'}
+        </Text>
       </Text>
     </View>
 
@@ -243,6 +378,42 @@ if (showSuccess) {
         View Logs
       </Text>
     </TouchableOpacity>
+    <TouchableOpacity
+  style={styles.secondaryButton}
+  onPress={() => setShowRegister(true)}
+>
+  <Text style={styles.buttonText}>
+    Register User
+  </Text>
+</TouchableOpacity>
+
+<TouchableOpacity
+  style={styles.secondaryButton}
+  onPress={() => setShowDashboard(true)}
+>
+  <Text style={styles.buttonText}>
+    Dashboard
+  </Text>
+</TouchableOpacity>
+<TouchableOpacity
+  style={styles.secondaryButton}
+  onPress={async () => {
+    await AsyncStorage.removeItem(
+      'attendanceRecords'
+    );
+
+    setRecords([]);
+    setSyncCount(0);
+
+    alert(
+      'Records Synced Successfully'
+    );
+  }}
+>
+  <Text style={styles.buttonText}>
+    Sync Records
+  </Text>
+</TouchableOpacity>
 
     <StatusBar style="light" />
   </View>
@@ -390,5 +561,32 @@ secondaryButton: {
   paddingVertical: 15,
   borderRadius: 12,
   marginTop: 20,
+},
+userText: {
+  color: '#ffffff',
+  marginTop: 20,
+  fontSize: 16,
+},
+
+input: {
+  width: '80%',
+  backgroundColor: '#1E293B',
+  color: '#ffffff',
+  padding: 15,
+  borderRadius: 12,
+  marginBottom: 20,
+},
+dashboardBox: {
+  backgroundColor: '#111827',
+  padding: 18,
+  borderRadius: 12,
+  width: '85%',
+  marginBottom: 20,
+},
+
+dashboardText: {
+  color: '#E5E7EB',
+  fontSize: 16,
+  marginBottom: 8,
 },
 });
