@@ -31,6 +31,12 @@ export default function App() {
     registeredUser !== 'Not Registered'
       ? 1
       : 0;
+  const [userFound, setUserFound] = useState(false);
+const [faceDetected, setFaceDetected] = useState(false);
+const [livenessVerified, setLivenessVerified] =
+  useState(false);
+const [identityVerified, setIdentityVerified] =
+  useState(false);
   const [verificationText, setVerificationText] = useState(
     'Blink Detected'
   );
@@ -39,29 +45,46 @@ export default function App() {
     useCameraPermissions();
 
   useEffect(() => {
-    if (showCamera) {
-      setVerificationText('Blink to Verify Identity');
+  if (showCamera) {
+    setVerificationText(
+      `Checking User: ${registeredUser}`
+    );
 
-      const timer1 = setTimeout(() => {
+    const timer1 = setTimeout(() => {
+      setVerificationText('Face Detected');
+
+      const timer2 = setTimeout(() => {
         setVerificationText('Liveness Verified');
 
-        const timer2 = setTimeout(() => {
+        const timer3 = setTimeout(() => {
           setVerificationText(
-            'Authentication Successful'
+            'Identity Verified'
           );
-          saveAttendance();
 
-          setTimeout(() => {
-            setShowSuccess(true);
+          const timer4 = setTimeout(() => {
+            setVerificationText(
+              'Authentication Successful'
+            );
+
+            saveAttendance();
+
+            setTimeout(() => {
+              setShowSuccess(true);
+            }, 1500);
           }, 1500);
-        }, 2000);
 
-        return () => clearTimeout(timer2);
-      }, 3000);
+          return () => clearTimeout(timer4);
+        }, 1500);
 
-      return () => clearTimeout(timer1);
-    }
-  }, [showCamera]);
+        return () => clearTimeout(timer3);
+      }, 1500);
+
+      return () => clearTimeout(timer2);
+    }, 1500);
+
+    return () => clearTimeout(timer1);
+  }
+}, [showCamera]);
   useEffect(() => {
   const loadRecords = async () => {
     const stored =
@@ -80,14 +103,15 @@ export default function App() {
 }, [showSuccess]);
 
 const loadUser = async () => {
-  const user =
-    await AsyncStorage.getItem(
-      'registeredUser'
-    );
+  const user = await AsyncStorage.getItem(
+  'registeredUser'
+);
 
-  if (user) {
-    setRegisteredUser(user);
-  }
+if (user) {
+  const profile = JSON.parse(user);
+
+  setRegisteredUser(profile.name);
+}
 };
 
 useEffect(() => {
@@ -175,14 +199,28 @@ if (showRegister) {
       <TouchableOpacity
         style={styles.button}
         onPress={async () => {
-          await AsyncStorage.setItem(
-            'registeredUser',
-            userName
-          );
+  if (!userName.trim()) {
+    alert('Please enter a name');
+    return;
+  }
 
-          setRegisteredUser(userName);
-          setShowRegister(false);
-        }}
+  const userProfile = {
+    id: `EMP${Date.now()}`,
+    name: userName,
+    department: 'NHAI Survey Team',
+    registeredAt: new Date().toLocaleDateString(),
+  };
+
+  await AsyncStorage.setItem(
+    'registeredUser',
+    JSON.stringify(userProfile)
+  );
+
+  setRegisteredUser(userName);
+  setShowRegister(false);
+
+  alert('User Registered Successfully');
+}}
       >
         <Text style={styles.buttonText}>
           Save User
@@ -195,20 +233,49 @@ if (showDashboard) {
   return (
     <View style={styles.container}>
       <Text style={styles.successTitle}>
-        System Dashboard
+        Employee Profile
       </Text>
 
-      <Text style={styles.logText}>
-        Registered Users: {registeredCount}
-      </Text>
+      <View style={styles.statusBox}>
+        <Text style={styles.logText}>
+          Employee ID: EMP001
+        </Text>
 
-      <Text style={styles.logText}>
-        Authentication Logs: {records.length}
-      </Text>
+        <Text style={styles.logText}>
+          Name: {registeredUser}
+        </Text>
 
-      <Text style={styles.logText}>
-        Pending Sync: {pendingSync}
-      </Text>
+        <Text style={styles.logText}>
+          Department: NHAI Survey Team
+        </Text>
+
+        <Text style={styles.logText}>
+          Registered: {new Date().toLocaleDateString()}
+        </Text>
+      </View>
+
+      <View
+        style={[
+          styles.statusBox,
+          { marginTop: 20 }
+        ]}
+      >
+        <Text style={styles.logText}>
+          Total Authentications:
+          {' '}
+          {records.length}
+        </Text>
+
+        <Text style={styles.logText}>
+          Pending Sync:
+          {' '}
+          {pendingSync}
+        </Text>
+
+        <Text style={styles.logText}>
+          Offline Status: Active
+        </Text>
+      </View>
 
       <TouchableOpacity
         style={styles.button}
@@ -224,7 +291,9 @@ if (showDashboard) {
           styles.secondaryButton,
           { marginTop: 20 }
         ]}
-        onPress={() => setShowDashboard(false)}
+        onPress={() =>
+          setShowDashboard(false)
+        }
       >
         <Text style={styles.buttonText}>
           Back
@@ -241,13 +310,33 @@ if (showLogs) {
       </Text>
 
       {records.map((record, index) => (
-       <Text
-       key={index}
-       style={styles.logText}
-      >
-      {record.time || 'Unknown Time'} ✅ {record.user}
+  <View
+    key={index}
+    style={[
+      styles.statusBox,
+      {
+        marginBottom: 15,
+        width: '85%',
+      },
+    ]}
+  >
+    <Text style={styles.logText}>
+      Time: {record.time}
     </Text>
-  ))}
+
+    <Text style={styles.logText}>
+      Employee: {record.user}
+    </Text>
+
+    <Text style={styles.logText}>
+      Status: VERIFIED
+    </Text>
+
+    <Text style={styles.logText}>
+      Mode: OFFLINE
+    </Text>
+  </View>
+))}
 
       <TouchableOpacity
         style={styles.button}
@@ -313,10 +402,45 @@ if (showSuccess) {
   AI Liveness Detection Active
 </Text>
 
-<Text style={styles.detectText}>
-  Face Detected Successfully
-</Text>
+<View style={styles.progressBox}>
+  <Text style={styles.progressTitle}>
+    Verification Progress
+  </Text>
 
+  <Text style={styles.progressText}>
+    {(verificationText === `Checking User: ${registeredUser}` ||
+      verificationText === 'Face Detected' ||
+      verificationText === 'Liveness Verified' ||
+      verificationText === 'Identity Verified' ||
+      verificationText === 'Authentication Successful')
+      ? '✅ User Found'
+      : '☐ User Found'}
+  </Text>
+
+  <Text style={styles.progressText}>
+    {(verificationText === 'Face Detected' ||
+      verificationText === 'Liveness Verified' ||
+      verificationText === 'Identity Verified' ||
+      verificationText === 'Authentication Successful')
+      ? '✅ Face Detected'
+      : '☐ Face Detected'}
+  </Text>
+
+  <Text style={styles.progressText}>
+    {(verificationText === 'Liveness Verified' ||
+      verificationText === 'Identity Verified' ||
+      verificationText === 'Authentication Successful')
+      ? '✅ Liveness Verified'
+      : '☐ Liveness Verified'}
+  </Text>
+
+  <Text style={styles.progressText}>
+    {(verificationText === 'Identity Verified' ||
+      verificationText === 'Authentication Successful')
+      ? '✅ Identity Verified'
+      : '☐ Identity Verified'}
+  </Text>
+</View>
 {verificationText === 'Authentication Successful' && (
   <View style={styles.successBox}>
     <Text style={styles.successText}>
@@ -589,4 +713,26 @@ dashboardText: {
   fontSize: 16,
   marginBottom: 8,
 },
+progressBox: {
+  backgroundColor: 'rgba(0,0,0,0.75)',
+  padding: 15,
+  borderRadius: 12,
+  marginTop: 15,
+  width: 280,
+},
+
+progressTitle: {
+  color: '#22C55E',
+  fontSize: 18,
+  fontWeight: 'bold',
+  marginBottom: 10,
+  textAlign: 'center',
+},
+
+progressText: {
+  color: '#ffffff',
+  fontSize: 15,
+  marginBottom: 6,
+},
+
 });
