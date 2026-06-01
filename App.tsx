@@ -103,15 +103,22 @@ const [identityVerified, setIdentityVerified] =
 }, [showSuccess]);
 
 const loadUser = async () => {
-  const user = await AsyncStorage.getItem(
-  'registeredUser'
-);
+  try {
+    const user = await AsyncStorage.getItem(
+      'registeredUser'
+    );
 
-if (user) {
-  const profile = JSON.parse(user);
-
-  setRegisteredUser(profile.name);
-}
+    if (user) {
+      try {
+        const profile = JSON.parse(user);
+        setRegisteredUser(profile.name);
+      } catch {
+        setRegisteredUser(user);
+      }
+    }
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 useEffect(() => {
