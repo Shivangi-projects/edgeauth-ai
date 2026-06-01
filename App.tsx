@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import * as FaceDetector from 'expo-face-detector';
+
 import {
   StyleSheet,
   Text,
@@ -10,12 +12,13 @@ import {
 
 import {
   CameraView,
-  useCameraPermissions,
+  useCameraPermissions
 } from 'expo-camera';
 
 import { useEffect, useState } from 'react';
 
 export default function App() {
+  const [cameraRef, setCameraRef] = useState<any>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [records, setRecords] = useState<any[]>([]);
@@ -25,14 +28,21 @@ export default function App() {
   const [registeredUser, setRegisteredUser] = useState('');
   const [syncCount, setSyncCount] = useState(0);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [faceCount, setFaceCount] = useState(0);
   const [pendingSync, setPendingSync] = useState(0);
+  const [faceVerified, setFaceVerified] = useState(false);
+  const handleFacesDetected = ({ faces }: any) => {
+  setFaceCount(faces.length);
+  setFaceDetected(faces.length > 0);
+};
     const registeredCount =
     registeredUser &&
     registeredUser !== 'Not Registered'
       ? 1
       : 0;
   const [userFound, setUserFound] = useState(false);
-const [faceDetected, setFaceDetected] = useState(false);
+
 const [livenessVerified, setLivenessVerified] =
   useState(false);
 const [identityVerified, setIdentityVerified] =
@@ -46,43 +56,13 @@ const [identityVerified, setIdentityVerified] =
 
   useEffect(() => {
   if (showCamera) {
+    setFaceVerified(false);
+    setFaceDetected(false);
+    setFaceCount(0);
+
     setVerificationText(
       `Checking User: ${registeredUser}`
     );
-
-    const timer1 = setTimeout(() => {
-      setVerificationText('Face Detected');
-
-      const timer2 = setTimeout(() => {
-        setVerificationText('Liveness Verified');
-
-        const timer3 = setTimeout(() => {
-          setVerificationText(
-            'Identity Verified'
-          );
-
-          const timer4 = setTimeout(() => {
-            setVerificationText(
-              'Authentication Successful'
-            );
-
-            saveAttendance();
-
-            setTimeout(() => {
-              setShowSuccess(true);
-            }, 1500);
-          }, 1500);
-
-          return () => clearTimeout(timer4);
-        }, 1500);
-
-        return () => clearTimeout(timer3);
-      }, 1500);
-
-      return () => clearTimeout(timer2);
-    }, 1500);
-
-    return () => clearTimeout(timer1);
   }
 }, [showCamera]);
   useEffect(() => {
@@ -184,6 +164,45 @@ const syncRecords = async () => {
     alert(
       'Records Synced Successfully\nLocal Cache Purged'
     );
+  } catch (error) {
+    console.log(error);
+  }
+};
+const detectFace = async () => {
+  try {
+    if (!cameraRef) return;
+
+    const photo = await cameraRef.takePictureAsync();
+
+    const result =
+      await FaceDetector.detectFacesAsync(
+        photo.uri
+      );
+      console.log(
+  'Faces detected:',
+  result.faces.length
+);
+
+   
+if (result.faces.length > 0) {
+  setFaceDetected(true);
+  setFaceCount(result.faces.length);
+  setFaceVerified(true);
+
+  setVerificationText(
+    'Authentication Successful'
+  );
+
+  await saveAttendance();
+
+  setTimeout(() => {
+    setShowSuccess(true);
+  }, 1000);
+}else {
+      setFaceVerified(false);
+
+      alert('No Face Found');
+    }
   } catch (error) {
     console.log(error);
   }
@@ -394,9 +413,10 @@ if (showSuccess) {
         </TouchableOpacity>
 
         <CameraView
-          style={styles.camera}
-          facing="front"
-        />
+  style={styles.camera}
+  facing="front"
+  ref={(ref) => setCameraRef(ref)}
+/>
 
         <View style={styles.overlay}>
           <View style={styles.faceBox} />
@@ -407,6 +427,11 @@ if (showSuccess) {
 
 <Text style={styles.subText}>
   AI Liveness Detection Active
+</Text>
+<Text style={styles.detectText}>
+  {faceDetected
+    ? `Face Detected (${faceCount})`
+    : 'No Face Detected'}
 </Text>
 
 <View style={styles.progressBox}>
@@ -425,29 +450,31 @@ if (showSuccess) {
   </Text>
 
   <Text style={styles.progressText}>
-    {(verificationText === 'Face Detected' ||
-      verificationText === 'Liveness Verified' ||
-      verificationText === 'Identity Verified' ||
-      verificationText === 'Authentication Successful')
-      ? '✅ Face Detected'
-      : '☐ Face Detected'}
-  </Text>
+  {faceVerified
+    ? '✅ Face Detected'
+    : '☐ Face Detected'}
+</Text>
 
   <Text style={styles.progressText}>
-    {(verificationText === 'Liveness Verified' ||
-      verificationText === 'Identity Verified' ||
-      verificationText === 'Authentication Successful')
-      ? '✅ Liveness Verified'
-      : '☐ Liveness Verified'}
-  </Text>
+  {faceVerified
+ ? '✅ Liveness Verified'
+ : '☐ Liveness Verified'}
+</Text>
 
   <Text style={styles.progressText}>
-    {(verificationText === 'Identity Verified' ||
-      verificationText === 'Authentication Successful')
-      ? '✅ Identity Verified'
-      : '☐ Identity Verified'}
-  </Text>
+  {faceVerified
+ ? '✅ Identity Verified'
+ : '☐ Identity Verified'}
+</Text>
 </View>
+<TouchableOpacity
+  style={styles.button}
+  onPress={detectFace}
+>
+  <Text style={styles.buttonText}>
+    Detect Face
+  </Text>
+</TouchableOpacity>
 {verificationText === 'Authentication Successful' && (
   <View style={styles.successBox}>
     <Text style={styles.successText}>
@@ -459,6 +486,7 @@ if (showSuccess) {
       </View>
     );
   }
+  
 
   return (
   <View style={styles.container}>
