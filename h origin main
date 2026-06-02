@@ -1,0 +1,17 @@
+[33mffecfe5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mface-detection-experiment[m[33m)[m Added face registration checks, liveness flow, dashboard profile, and offline sync
+[33m0446d58[m Implemented real face detection authentication
+[33m0dc3a6f[m[33m ([m[1;31morigin/main[m[33m, [m[1;32mmain[m[33m)[m Android stable build
+[33m3705586[m Day 3 complete - registration logs dashboard sync workflow
+[33m65ecc2c[m Completed day 2 offline workflow
+[33m399dfa6[m Added offline authentication logs
+[33m062dfd0[m Merge branch 'main' of https://github.com/Shivangi-projects/edgeauth-ai
+[33mf68f521[m Completed Day 1 prototype setup
+[33m7abb6b6[m Initial commit
+[33m3874845[m Rename NHAI HACKATHON 7.pptm to edgeauthai_presentation.pptm
+[33m6461c09[m Rename NHAI HACKATHON 7.pdf to edgeauthai_proposal.pdf
+[33m2a6691c[m Add files via upload
+[33mf6b33c6[m Add files via upload
+[33m8fa0477[m Create project_proposal.md
+[33m51610d6[m Create README.md
+[33m364eb93[m Update README.md
+[33m808fbe9[m Initial commit
