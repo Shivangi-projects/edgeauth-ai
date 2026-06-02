@@ -8,6 +8,7 @@ import {
   View,
   TouchableOpacity,
   TextInput,
+  Image,
 } from 'react-native';
 
 import {
@@ -18,6 +19,16 @@ import {
 import { useEffect, useState } from 'react';
 
 export default function App() {
+  const [identityMatched, setIdentityMatched] =
+  useState(false);
+  const [headLeftDone, setHeadLeftDone] =
+  useState(false);
+
+const [headRightDone, setHeadRightDone] =
+  useState(false);
+
+const [livenessPassed, setLivenessPassed] =
+  useState(false);
   const [cameraRef, setCameraRef] = useState<any>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -32,6 +43,12 @@ export default function App() {
   const [faceCount, setFaceCount] = useState(0);
   const [pendingSync, setPendingSync] = useState(0);
   const [faceVerified, setFaceVerified] = useState(false);
+  const [registerFaceMode, setRegisterFaceMode] =
+  useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+
+const [registeredFaceUri, setRegisteredFaceUri] =
+  useState('');
   const handleFacesDetected = ({ faces }: any) => {
   setFaceCount(faces.length);
   setFaceDetected(faces.length > 0);
@@ -59,6 +76,11 @@ const [identityVerified, setIdentityVerified] =
     setFaceVerified(false);
     setFaceDetected(false);
     setFaceCount(0);
+    setHeadLeftDone(false);
+setHeadRightDone(false);
+setLivenessPassed(false);
+
+setCurrentStep(1);
 
     setVerificationText(
       `Checking User: ${registeredUser}`
@@ -83,6 +105,14 @@ const [identityVerified, setIdentityVerified] =
 }, [showSuccess]);
 
 const loadUser = async () => {
+  const face =
+  await AsyncStorage.getItem(
+    'registeredFace'
+  );
+
+if (face) {
+  setRegisteredFaceUri(face);
+}
   try {
     const user = await AsyncStorage.getItem(
       'registeredUser'
@@ -148,6 +178,9 @@ useEffect(() => {
       'attendanceRecords',
       JSON.stringify(records)
     );
+    setRecords(records);
+setPendingSync(records.length);
+setSyncCount(records.length);
 
     console.log('Attendance Saved');
   } catch (error) {
@@ -188,16 +221,20 @@ if (result.faces.length > 0) {
   setFaceDetected(true);
   setFaceCount(result.faces.length);
   setFaceVerified(true);
+  setCurrentStep(2); 
+  if (registeredFaceUri) {
+  setIdentityMatched(true);
+} else {
+  setIdentityMatched(false);
+}
 
   setVerificationText(
-    'Authentication Successful'
-  );
+  'Identity Verified'
+);
 
-  await saveAttendance();
 
-  setTimeout(() => {
-    setShowSuccess(true);
-  }, 1000);
+
+
 }else {
       setFaceVerified(false);
 
@@ -207,6 +244,60 @@ if (result.faces.length > 0) {
     console.log(error);
   }
 };
+const captureRegisteredFace = async () => {
+  try {
+    if (!cameraRef) return;
+
+    const photo =
+      await cameraRef.takePictureAsync();
+      const result =
+  await FaceDetector.detectFacesAsync(
+    photo.uri
+  );
+
+    if (result.faces.length === 0) {
+  alert(
+    'No face found. Please capture your face.'
+  );
+  return;
+}
+
+await AsyncStorage.setItem(
+  'registeredFace',
+  photo.uri
+);
+
+setRegisteredFaceUri(photo.uri);
+
+alert(
+  'Face Registered Successfully'
+);
+
+    setRegisterFaceMode(false);
+  } catch (error) {
+    console.log(error);
+  }
+};
+if (registerFaceMode) {
+  return (
+    <View style={styles.container}>
+      <CameraView
+        style={styles.camera}
+        facing="front"
+        ref={(ref) => setCameraRef(ref)}
+      />
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={captureRegisteredFace}
+      >
+        <Text style={styles.buttonText}>
+          Capture Face
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 if (showRegister) {
   return (
     <View style={styles.container}>
@@ -221,38 +312,87 @@ if (showRegister) {
         value={userName}
         onChangeText={setUserName}
       />
+      <Text
+  style={{
+    color: registeredFaceUri
+      ? '#22C55E'
+      : '#EF4444',
+    marginBottom: 15,
+    fontSize: 16,
+    fontWeight: '600',
+  }}
+>
+  {registeredFaceUri
+    ? '✅ Face Captured'
+    : '❌ Face Not Captured'}
+</Text>
 
       <TouchableOpacity
-        style={styles.button}
-        onPress={async () => {
-  if (!userName.trim()) {
-    alert('Please enter a name');
-    return;
+  style={styles.secondaryButton}
+  onPress={() =>
+    setRegisterFaceMode(true)
   }
+>
+  <Text style={styles.buttonText}>
+    Capture Face
+  </Text>
+</TouchableOpacity>
 
-  const userProfile = {
-    id: `EMP${Date.now()}`,
-    name: userName,
-    department: 'NHAI Survey Team',
-    registeredAt: new Date().toLocaleDateString(),
-  };
+<TouchableOpacity
+  style={styles.button}
+  onPress={async () => {
+    if (!userName.trim()) {
+      alert('Please enter a name');
+      return;
+    }
+    console.log('registeredFaceUri =', registeredFaceUri);
+    if (!registeredFaceUri) {
+      alert(
+        'Please capture a face first'
+      );
+      return;
+    }
 
-  await AsyncStorage.setItem(
-    'registeredUser',
-    JSON.stringify(userProfile)
-  );
+    const userProfile = {
+      id: `EMP${Date.now()}`,
+      name: userName,
+      department: 'NHAI Survey Team',
+      registeredAt:
+        new Date().toLocaleDateString(),
+    };
 
-  setRegisteredUser(userName);
-  setShowRegister(false);
+    await AsyncStorage.setItem(
+      'registeredUser',
+      JSON.stringify(userProfile)
+    );
 
-  alert('User Registered Successfully');
-}}
-      >
-        <Text style={styles.buttonText}>
-          Save User
-        </Text>
-      </TouchableOpacity>
-    </View>
+    setRegisteredUser(userName);
+    setShowRegister(false);
+
+    alert(
+      'User Registered Successfully'
+    );
+  }}
+>
+  <Text style={styles.buttonText}>
+    Save User
+  </Text>
+</TouchableOpacity>
+<TouchableOpacity
+  style={styles.secondaryButton}
+  onPress={async () => {
+    await AsyncStorage.removeItem(
+      'registeredFace'
+    );
+    setRegisteredFaceUri('');
+    alert('Face Cleared');
+  }}
+>
+  <Text style={styles.buttonText}>
+    Clear Face
+  </Text>
+</TouchableOpacity>
+        </View>
   );
 }
 if (showDashboard) {
@@ -261,6 +401,15 @@ if (showDashboard) {
       <Text style={styles.successTitle}>
         Employee Profile
       </Text>
+      <Image
+  source={{ uri: registeredFaceUri }}
+  style={{
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 20,
+  }}
+/>
 
       <View style={styles.statusBox}>
         <Text style={styles.logText}>
@@ -270,6 +419,14 @@ if (showDashboard) {
         <Text style={styles.logText}>
           Name: {registeredUser}
         </Text>
+        <Text style={styles.logText}>
+  Face Registered:
+  {' '}
+  {registeredFaceUri
+    ? 'YES ✅'
+    : 'NO ❌'}
+</Text>
+
 
         <Text style={styles.logText}>
           Department: NHAI Survey Team
@@ -426,7 +583,17 @@ if (showSuccess) {
 </Text>
 
 <Text style={styles.subText}>
-  AI Liveness Detection Active
+  {currentStep === 1 &&
+    'Step 1/3 : Detect Face'}
+
+  {currentStep === 2 &&
+    'Step 2/3 : Turn Head Left'}
+
+  {currentStep === 3 &&
+    'Step 3/3 : Turn Head Right'}
+
+  {currentStep === 4 &&
+    'Liveness Verified ✅'}
 </Text>
 <Text style={styles.detectText}>
   {faceDetected
@@ -456,25 +623,65 @@ if (showSuccess) {
 </Text>
 
   <Text style={styles.progressText}>
-  {faceVerified
+  {livenessPassed
  ? '✅ Liveness Verified'
  : '☐ Liveness Verified'}
 </Text>
 
   <Text style={styles.progressText}>
-  {faceVerified
+  {livenessPassed
  ? '✅ Identity Verified'
  : '☐ Identity Verified'}
-</Text>
+ </Text>
 </View>
-<TouchableOpacity
-  style={styles.button}
-  onPress={detectFace}
->
-  <Text style={styles.buttonText}>
-    Detect Face
-  </Text>
-</TouchableOpacity>
+{currentStep === 1 && (
+  <TouchableOpacity
+    style={styles.button}
+    onPress={detectFace}
+  >
+    <Text style={styles.buttonText}>
+      Detect Face
+    </Text>
+  </TouchableOpacity>
+)}
+
+{currentStep === 2 && (
+  <TouchableOpacity
+    style={styles.secondaryButton}
+    onPress={() => {
+      setHeadLeftDone(true);
+      setCurrentStep(3);
+    }}
+  >
+    <Text style={styles.buttonText}>
+      Head Left ✓
+    </Text>
+  </TouchableOpacity>
+)}
+
+{currentStep === 3 && (
+  <TouchableOpacity
+    style={styles.secondaryButton}
+    onPress={async () => {
+      setHeadRightDone(true);
+      setLivenessPassed(true);
+      setCurrentStep(4);
+
+      setVerificationText(
+        'Authentication Successful'
+      );
+
+      setTimeout(async () => {
+        await saveAttendance();
+        setShowSuccess(true);
+      }, 1500);
+    }}
+  >
+    <Text style={styles.buttonText}>
+      Head Right ✓
+    </Text>
+  </TouchableOpacity>
+)}
 {verificationText === 'Authentication Successful' && (
   <View style={styles.successBox}>
     <Text style={styles.successText}>
@@ -635,10 +842,10 @@ const styles = StyleSheet.create({
   },
 
   overlay: {
-    position: 'absolute',
-    bottom: 120,
-    alignItems: 'center',
-  },
+  position: 'absolute',
+  bottom: 40,
+  alignItems: 'center',
+},
 
   faceBox: {
     width: 220,
@@ -753,7 +960,8 @@ progressBox: {
   padding: 15,
   borderRadius: 12,
   marginTop: 15,
-  width: 280,
+  width: 300,
+  maxHeight: 220,
 },
 
 progressTitle: {
