@@ -540,10 +540,10 @@ if (showSuccess) {
       </Text>
 
       <Text style={styles.successSubtitle}>
-        Identity Verified Offline
-        {'\n'}
-        ({records.length} records stored)
-      </Text>
+  Attendance Recorded Successfully
+  {'\n'}
+  Stored Securely On Device
+</Text>
 
       <TouchableOpacity
         style={styles.button}
@@ -700,8 +700,8 @@ if (showSuccess) {
     <Text style={styles.title}>EdgeAuth AI</Text>
 
     <Text style={styles.subtitle}>
-      Offline Facial Recognition &
-      Liveness Detection
+      Secure Offline Identity Verification
+      for Field Personnel
     </Text>
     <View style={styles.dashboardBox}>
   <Text style={styles.dashboardText}>
